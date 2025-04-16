@@ -9,7 +9,7 @@ from geojson import Point
 from sd_data_adapter.api.search import search
 from sd_data_adapter.api.upload import upload
 from sd_data_adapter.client import DAClient
-from sd_data_adapter.models.weather import WeatherObserved
+from sd_data_adapter.models.weather import WeatherObserved, WeatherForecast
 
 
 try:
@@ -86,18 +86,19 @@ class WeatherHandler(BaseHTTPRequestHandler):
                 current_temperature_2m = current.Variables(0).Value()
                 current_relative_humidity_2m = current.Variables(1).Value()
                 current_apparent_temperature = current.Variables(2).Value()
-                current_is_day = current.Variables(3).Value()
-                current_wind_speed_10m = current.Variables(4).Value()
-                current_wind_direction_10m = current.Variables(5).Value()
-                current_precipitation = current.Variables(6).Value()
-                current_rain = current.Variables(7).Value()
-                current_showers = current.Variables(8).Value()
-                current_snowfall = current.Variables(9).Value()
-                current_wind_gusts_10m = current.Variables(10).Value()
-                current_weather_code = current.Variables(11).Value()
-                current_cloud_cover = current.Variables(12).Value()
-                current_pressure_msl = current.Variables(13).Value()
-                current_surface_pressure = current.Variables(14).Value()
+                current_precipitation = current.Variables(3).Value()
+                current_rain = current.Variables(4).Value()
+                current_showers = current.Variables(5).Value()
+                current_snowfall = current.Variables(6).Value()
+                current_weather_code = current.Variables(7).Value()
+                current_surface_pressure = current.Variables(8).Value()
+                current_cloud_cover = current.Variables(9).Value()
+                current_visibility = current.Variables(10).Value()
+                current_wind_speed_10m = current.Variables(11).Value()
+                current_wind_direction_10m = current.Variables(12).Value()
+                current_wind_gusts_10m = current.Variables(13).Value()
+                current_is_day = current.Variables(14).Value()
+
 
                 daily_max_temperature = daily.Variables(0).ValuesAsNumpy()
                 daily_min_temperature = daily.Variables(1).ValuesAsNumpy()
@@ -116,16 +117,15 @@ class WeatherHandler(BaseHTTPRequestHandler):
                     inclusive="left"
                 )}
 
-                daily_data["maxTemperature"] = daily_max_temperature
-                daily_data["minTemperature"] = daily_min_temperature
+                daily_data["temperature2mMax"] = daily_max_temperature
+                daily_data["temperature2mMin"] = daily_min_temperature
                 daily_data["sunrise"] = daily_sunrise
                 daily_data["sunset"] = daily_sunset
                 daily_data["precipitationSum"] = daily_precipitation_sum
                 daily_data["rainSum"] = daily_rain_sum
                 daily_data["showersSum"] = daily_showers_sum
                 daily_data["snowfallSum"] = daily_snowfall_sum
-                daily_data["uvIndex"] = daily_uv_index
-
+                daily_data["uvIndexMax"] = daily_uv_index
 
                 hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
                 hourly_relative_humidity_2m = hourly.Variables(1).ValuesAsNumpy()
@@ -146,6 +146,28 @@ class WeatherHandler(BaseHTTPRequestHandler):
                 hourly_wind_direction_10m = hourly.Variables(16).ValuesAsNumpy()
                 hourly_wind_gusts_10m = hourly.Variables(17).ValuesAsNumpy()
 
+                def get_weather_type(weather_code):
+                    weather_mapping = {
+                        0: "Sunny",
+                        1: "Partly Cloudy",
+                        2: "Cloudy",
+                        3: "Rainy",
+                        4: "Snowy",
+                        5: "Foggy",
+                        6: "Windy",
+                        7: "Sensitive",
+                        8: "Very Cloudy",
+                        10: "Approaching Rain",
+                        11: "Approaching Snow",
+                    }
+
+                    if weather_code in weather_mapping:
+                        print(weather_mapping[weather_code])
+                        print("\n")
+                        return weather_mapping[weather_code]
+                    else:
+                        return f"Unknown weatherCode: {weather_code}"
+
                 timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
 
                 weather_observed = WeatherObserved(
@@ -157,8 +179,8 @@ class WeatherHandler(BaseHTTPRequestHandler):
                 weather_observed.airTemperatureTSA = {
                     "averageValue": current_temperature_2m,
                     "instValue": current_temperature_2m,
-                    "maxOverTime": daily_data["maxTemperature"].tolist(),
-                    "minOverTime": daily_data["minTemperature"].tolist()
+                    "maxOverTime": daily_max_temperature.tolist(),
+                    "minOverTime": daily_min_temperature.tolist()
                 }
                 weather_observed.atmosphericPressure = current_surface_pressure
                 weather_observed.dewPoint = hourly_dew_point_2m.tolist()
@@ -167,8 +189,54 @@ class WeatherHandler(BaseHTTPRequestHandler):
                 weather_observed.dateCreated = datetime.utcnow().isoformat() + "Z"
                 weather_observed.dateModified = datetime.utcnow().isoformat() + "Z"
 
+
+#**************************************************Forecast**************************************************
+#**************************************************Forecast**************************************************
+#**************************************************Forecast**************************************************
+
+                weather_forecast = WeatherForecast(
+                    id=f"urn:ngsi-ld:WeatherForecast:{agri_parcel_id}:{timestamp}",
+                    dateIssued=datetime.utcnow().isoformat() + "Z",
+                    location=Point((longitude, latitude))
+                )
+
+                # Popunjavanje podataka iz OpenMeteo API-ja
+                weather_forecast.temperature = current_temperature_2m
+                weather_forecast.feelLikesTemperature = current_apparent_temperature
+                weather_forecast.relativeHumidity = current_relative_humidity_2m
+                weather_forecast.windSpeed = current_wind_speed_10m
+                weather_forecast.windDirection = current_wind_direction_10m
+                weather_forecast.gustSpeed = current_wind_gusts_10m
+                weather_forecast.precipitation = current_precipitation
+                weather_forecast.atmosphericPressure = current_surface_pressure
+                weather_forecast.weatherType = get_weather_type(int(current_weather_code))
+                weather_forecast.visibility = float(hourly_visibility[0])
+                weather_forecast.uVIndexMax = float(daily_uv_index[0]) if len(daily_uv_index) > 0 else None
+
+                # Dnevni maksimumi i minimumi
+                weather_forecast.dayMaximum = {
+                    "temperature": float(daily_max_temperature[0]),
+                    "feelLikesTemperature": float(hourly_apparent_temperature.max()),
+                    "relativeHumidity": float(hourly_relative_humidity_2m.max())
+                }
+
+                weather_forecast.dayMinimum = {
+                    "temperature": float(daily_min_temperature[0]),
+                    "feelLikesTemperature": float(hourly_apparent_temperature.min()),
+                    "relativeHumidity": float(hourly_relative_humidity_2m.min())
+                }
+
+                # Ostali meta podaci
+                weather_forecast.description = "Podaci generisani na osnovu OpenMeteo API odgovora"
+                weather_forecast.dataProvider = "OpenMeteo"
+                weather_forecast.dateCreated = datetime.utcnow().isoformat() + "Z"
+                weather_forecast.dateModified = datetime.utcnow().isoformat() + "Z"
+
                 try:
-                    upload_result = upload(weather_observed)
+                    upload_observed_result = upload(weather_observed)
+                    upload_forecast_result = upload(weather_forecast)
+                    print(upload_observed_result)
+                    print(upload_forecast_result)
                 except Exception as upload_err:
                     print(f"Greška pri upisu WeatherObserved za parcelu {agri_parcel_id}: {upload_err}")
 
