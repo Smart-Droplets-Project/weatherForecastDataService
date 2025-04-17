@@ -1,13 +1,7 @@
 import schedule
 import time
-from datetime import datetime
-
 import openmeteo_requests
-import json
 from datetime import datetime
-import numpy as np
-import requests
-import pandas as pd
 from geojson import Point
 import requests
 
@@ -219,8 +213,7 @@ def job():
     ws = WeatherService()
     ws.update_weather_for_parcels()
 
-# Pokreće se svaki dan u 08:00
-schedule.every().day.at("12:00").do(job)
+schedule.every().day.at("11:56").do(job)
 
 while True:
     schedule.run_pending()
