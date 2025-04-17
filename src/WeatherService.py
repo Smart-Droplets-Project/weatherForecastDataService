@@ -153,12 +153,10 @@ class WeatherService:
                 weather_forecast.dateModified = datetime.utcnow().isoformat() + "Z"
 
                 try:
-                    upload_observed_result = upload(weather_observed)
-                    upload_forecast_result = upload(weather_forecast)
+                    upload(weather_observed)
+                    upload(weather_forecast)
                 except Exception as upload_err:
                     print(f"Greška pri upisu WeatherObserved za parcelu {agri_parcel_id}: {upload_err}")
-
-                return weather_observed
 
         except Exception as e:
             print(f"Error fetching weather data: {str(e)}")
