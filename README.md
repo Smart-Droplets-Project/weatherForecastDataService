@@ -1,4 +1,4 @@
-#Weather Service - README
+Weather Service - README
 
 This script collects weather data for agricultural parcels using the OpenMeteo API, processes it into WeatherObserved and WeatherForecast entities, and uploads it to a data service.
 Features
