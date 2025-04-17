@@ -3,9 +3,6 @@ import time
 import openmeteo_requests
 from datetime import datetime
 from geojson import Point
-import requests
-
-
 from sd_data_adapter.api.search import search
 from sd_data_adapter.api.upload import upload
 from sd_data_adapter.client import DAClient
@@ -174,17 +171,7 @@ class WeatherService:
                     ctx = "https://smartdatamodels.org/context.jsonld"
                     agri_parcels = search(params={"type": "https://smartdatamodels.org/dataModel.Agrifood/AgriParcel"}, ctx=ctx)
                 except Exception as e:
-                    orion_url = "http://localhost:1026/v2/entities?type=AgriParcel"
-                    headers = {"Accept": "application/json"}
-                    res = requests.get(orion_url, headers=headers)
-                    if res.status_code != 200:
-                        self._send_response(500, 'application/json', {"error": "Neuspešno dobavljanje AgriParcel entiteta iz Orion-a"})
-                        return
-                    agri_parcels = res.json()
-            else:
-                print("GRESKA ORION NIJE DOBRO POVEZAN\n")
-
-            weather_data = []
+                    print("GRESKA ORION NIJE DOBRO POVEZAN\n")
 
             for agri_parcel in agri_parcels:
                 if agri_parcel.type != "https://smartdatamodels.org/dataModel.Agrifood/AgriParcel":
@@ -197,23 +184,17 @@ class WeatherService:
                 except Exception as e:
                     continue
 
-                weather_info = self._get_weather_data(
+                self._get_weather_data(
                     centroid_lat, centroid_lon, agri_parcel.id
                 )
-                weather_data.append(weather_info)
-
-            print("✅ Podaci o vremenu uspešno ažurirani za sve parcele.")
-            return weather_data
-
         except Exception as e:
             print(f"❌ Greška na serveru: {str(e)}")
 
 def job():
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Pokrećem ažuriranje vremenskih podataka...")
     ws = WeatherService()
     ws.update_weather_for_parcels()
 
-schedule.every().day.at("11:56").do(job)
+schedule.every().day.at("10:00").do(job)
 
 while True:
     schedule.run_pending()
