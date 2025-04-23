@@ -8,18 +8,11 @@ from sd_data_adapter.api.upload import upload
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.models.weather import WeatherObserved, WeatherForecast
 
-try:
-    SD_ADAPTER_AVAILABLE = True
-    DAClient.get_instance()
-except ImportError as e:
-    SD_ADAPTER_AVAILABLE = False
-
 class WeatherService:
     def __init__(self):
         pass
 
     def _get_weather_data(self, latitude, longitude, agri_parcel_id):
-        """Dobavlja vremenske podatke za datu lokaciju i kreira WeatherObserved entitet"""
 
         om = openmeteo_requests.Client()
 
@@ -156,7 +149,7 @@ class WeatherService:
                     upload(weather_observed)
                     upload(weather_forecast)
                 except Exception as upload_err:
-                    print(f"Greška pri upisu WeatherObserved za parcelu {agri_parcel_id}: {upload_err}")
+                    print(f"Error: {agri_parcel_id}: {upload_err}")
 
         except Exception as e:
             print(f"Error fetching weather data: {str(e)}")
@@ -164,12 +157,12 @@ class WeatherService:
 
     def update_weather_for_parcels(self):
         try:
-            if SD_ADAPTER_AVAILABLE:
-                try:
-                    ctx = "https://smartdatamodels.org/context.jsonld"
-                    agri_parcels = search(params={"type": "https://smartdatamodels.org/dataModel.Agrifood/AgriParcel"}, ctx=ctx)
-                except Exception as e:
-                    print("GRESKA ORION NIJE DOBRO POVEZAN\n")
+            DAClient.get_instance()
+            try:
+                ctx = "https://smartdatamodels.org/context.jsonld"
+                agri_parcels = search(params={"type": "https://smartdatamodels.org/dataModel.Agrifood/AgriParcel"}, ctx=ctx)
+            except Exception as e:
+                print("Error: Orion is not connected")
 
             for agri_parcel in agri_parcels:
                 if agri_parcel.type != "https://smartdatamodels.org/dataModel.Agrifood/AgriParcel":
@@ -186,7 +179,7 @@ class WeatherService:
                     centroid_lat, centroid_lon, agri_parcel.id
                 )
         except Exception as e:
-            print(f"❌ Greška na serveru: {str(e)}")
+            print(f"Server error: {str(e)}")
 
 def job():
     ws = WeatherService()
@@ -196,5 +189,4 @@ schedule.every().day.at("10:00").do(job)
 
 while True:
     schedule.run_pending()
-    time.sleep(1)
-
+    time.sleep(3 * 3600)
