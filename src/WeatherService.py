@@ -1,6 +1,7 @@
 import schedule
 import time
 import openmeteo_requests
+import os
 from datetime import datetime
 from geojson import Point
 from sd_data_adapter.api.search import search
@@ -157,7 +158,8 @@ class WeatherService:
 
     def update_weather_for_parcels(self):
         try:
-            DAClient.get_instance()
+            DAClient.get_instance(host="orion", port=1026)
+
             try:
                 ctx = "https://smartdatamodels.org/context.jsonld"
                 agri_parcels = search(params={"type": "https://smartdatamodels.org/dataModel.Agrifood/AgriParcel"}, ctx=ctx)
@@ -189,4 +191,4 @@ schedule.every().day.at("10:00").do(job)
 
 while True:
     schedule.run_pending()
-    time.sleep(3 * 3600)
+    time.sleep(1)
