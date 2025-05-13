@@ -16,7 +16,6 @@ class WeatherService:
     def update_weather_forecast_data(self, latitude, longitude, agri_parcel_id):
         om = openmeteo_requests.Client()
 
-
         start_date = datetime.utcnow()
         forecast_days = 14
 
@@ -94,11 +93,10 @@ class WeatherService:
                             8: "Very Cloudy",
                             10: "Approaching Rain",
                             11: "Approaching Snow",
-                        }
 
+     }
                         return weather_mapping.get(weather_code, f"Unknown weatherCode: {weather_code}")
 
-                    # Generisanje objekta WeatherForecast za svaki dan
                     timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
                     weather_forecast = WeatherForecast(
                         id=f"urn:ngsi-ld:WeatherForecast:{agri_parcel_id}:{start_date_str}",
@@ -236,18 +234,27 @@ class WeatherService:
                 print("Error: Orion is not connected")
 
             for agri_parcel in agri_parcels:
-                if agri_parcel.type != "https://smartdatamodels.org/dataModel.Agrifood/AgriParcel":
-                    continue
-
                 try:
-                    coords = agri_parcel.location["coordinates"][0][:-1]
-                    centroid_lon = sum(c[0] for c in coords) / len(coords)
-                    centroid_lat = sum(c[1] for c in coords) / len(coords)
+                    location_data = agri_parcel.location
+                    features = location_data.get("features", [])
+
+                    point_feature = next((f for f in features if f.get("geometry", {}).get("type") == "Point"), None)
+                    if point_feature:
+                        centroid_lon, centroid_lat = point_feature["geometry"]["coordinates"]
+                    else:
+                        polygon_feature = next((f for f in features if f.get("geometry", {}).get("type") == "Polygon"), None)
+                        if polygon_feature:
+                            coords = polygon_feature["geometry"]["coordinates"][0][:-1]
+                            centroid_lon = sum(c[0] for c in coords) / len(coords)
+                            centroid_lat = sum(c[1] for c in coords) / len(coords)
+                        else:
+                            print(f"Parcela {agri_parcel.get('id')} nema validnu geometriju")
+                            continue
+
+                    print(f"lon={centroid_lon}, lat={centroid_lat}")
                 except Exception as e:
                     continue
 
-
-                #self.save_weather_observed_data(centroid_lat, centroid_lon, agri_parcel.id)
                 self.update_weather_forecast_data(
                     centroid_lat, centroid_lon, agri_parcel.id
                 )
