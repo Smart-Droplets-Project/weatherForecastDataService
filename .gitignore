@@ -1,2 +1,5 @@
 WeatherComponent/.idea/
 WeatherComponent/WeatherComponent.iml
+**.idea
+*.iml
+venv/
